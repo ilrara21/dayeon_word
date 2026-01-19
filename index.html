@@ -74,11 +74,9 @@
         .word-text { font-size: 70px; color: #333; margin: 10px 0; cursor: pointer; }
         .word-meaning { font-size: 40px; color: #757575; }
         
-        /* 캔버스 컨테이너 (겹치기 위함) */
+        /* 캔버스 스타일 */
         .canvas-wrapper { position: relative; width: 400px; height: 200px; margin: 0 auto; border: 3px dashed #BDC3C7; border-radius: 20px; background: #fff; overflow: hidden; }
-        /* 배경 가이드 텍스트 */
-        .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 80px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; }
-        /* 실제 그리는 캔버스 */
+        .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 70px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; }
         canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 10; touch-action: none; background: transparent; }
 
         .puzzle-box { display: flex; justify-content: center; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
@@ -150,7 +148,7 @@
 
 <script>
     // ============================================================
-    // [설정] 구글 시트 링크 (여기에 링크를 넣으세요!)
+    // [설정] 구글 시트 링크
     // ============================================================
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUloHhQSGx9JvgRWyfVIZt_ibvnK_aeCnuwr6bd6MiKFPgx3CBqMSvfRyqsGNjxcmTza03kNEusRvi/pub?output=csv"; 
     
@@ -159,9 +157,14 @@
     let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     let studyQueue = [], studyIndex = 0, writeCount = 10;
     
+    // 쓰기 관련 변수
+    let currentWriteMode = 'upper'; // 'upper' 또는 'lower'
+    
+    // 퍼즐 변수
     let currentPuzzleAnswer = [];
     let currentPuzzleSource = [];
     
+    // 음성 인식 변수
     let recognition;
     let targetSentence = ""; 
     let currentSentIndex = 1;
@@ -279,24 +282,31 @@
         const emojis = ["🍎", "🐶", "🐱", "🚌", "🍕", "⚽", "⭐", "🌈", "📚", "🚗", "✈️"];
         const randEmoji = emojis[Math.floor(Math.random()*emojis.length)];
 
+        // 현재 단어의 대문자/소문자 준비
+        const upperWord = data.word.toUpperCase();
+        const lowerWord = data.word.toLowerCase();
+
         document.getElementById('study-content').innerHTML = `
             <div id="step-1" style="animation:fadeIn 0.5s; text-align:center;">
                 <div class="word-image" onclick="speak('${data.word}')">${randEmoji} <span style="font-size:30px">🔊</span></div>
                 <div class="word-text eng-font" onclick="speak('${data.word}')">${data.word}</div>
                 <div class="word-meaning">${data.meaning}</div>
                 <br><br>
-                <button onclick="goStep2('${data.word}')">쓰기 연습 (10번) 👉</button>
+                <button onclick="goStep2()">쓰기 연습 (10번) 👉</button>
             </div>
 
             <div id="step-2" style="display:none; animation:fadeIn 0.5s; text-align:center;">
                 <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
-                    <span style="font-size:60px;" onclick="speak('${data.word}')">${randEmoji}</span>
-                    <span class="eng-font" style="font-size:60px; color:#333;" onclick="speak('${data.word}')">${data.word}</span>
+                    <span style="font-size:50px;" onclick="speak('${data.word}')">${randEmoji}</span>
+                    <span id="target-display" class="eng-font" style="font-size:50px; color:#333;">${upperWord}</span>
                 </div>
-                <div style="font-size:20px; color:#888;">흐릿한 글씨를 따라 써보세요!</div>
+                
+                <div id="guide-msg" style="font-size:20px; color:#00796B; font-weight:bold; margin-bottom:5px;">
+                    대문자를 따라 써보세요!
+                </div>
                 
                 <div class="canvas-wrapper">
-                    <div id="canvas-guide-text" class="canvas-guide">${data.word}</div>
+                    <div id="canvas-guide-text" class="canvas-guide">${upperWord}</div>
                     <canvas id="drawCanvas" width="400" height="200"></canvas>
                 </div>
 
@@ -304,7 +314,7 @@
                     <div style="font-size:24px; font-weight:bold; color:#E91E63;">남은 횟수: <span id="cnt">10</span></div>
                     <div>
                         <button class="sub-btn" style="background:#90A4AE;" onclick="clearCanvas()">지우기</button>
-                        <button class="sub-btn" onclick="checkWrite()">다 썼어요!</button>
+                        <button class="sub-btn" onclick="checkWrite('${data.word}')">다 썼어요!</button>
                     </div>
                 </div>
             </div>
@@ -332,52 +342,54 @@
         `;
         
         writeCount = 10;
+        currentWriteMode = 'upper'; // 처음엔 대문자부터
         initPuzzle(data.word);
         setTimeout(() => speak(data.word), 600);
     }
 
-    // --- 쓰기 로직 (잉크 감지) ---
-    function goStep2(word) { 
+    // --- 쓰기 로직 (대소문자 + 잉크 감지) ---
+    function goStep2() { 
         document.getElementById('step-1').style.display='none'; 
         document.getElementById('step-2').style.display='block'; 
         setupCanvas();
     }
 
     function hasEnoughInk() {
-        const w = canvas.width;
-        const h = canvas.height;
+        const w = canvas.width; const h = canvas.height;
         const pixels = ctx.getImageData(0, 0, w, h).data;
-        let coloredPixels = 0;
-        
-        // 픽셀 하나하나 검사 (Alpha 값이 0보다 크면 그린 것)
-        for(let i = 3; i < pixels.length; i += 4) {
-            if(pixels[i] > 10) { 
-                coloredPixels++;
-            }
-        }
-        
-        // 기준: 대략 500픽셀 이상 (점만 찍은게 아닌지 확인)
-        // 화면 해상도(DPR)에 따라 픽셀 수가 다르므로 보정 필요할 수 있으나 단순하게 설정
-        return coloredPixels > 300; 
+        let colored = 0;
+        for(let i = 3; i < pixels.length; i += 4) { if(pixels[i] > 10) colored++; }
+        return colored > 300; 
     }
 
-    function checkWrite() {
-        // [중요] 잉크 감지 체크
-        if(!hasEnoughInk()) {
-            alert("글씨를 따라 써주세요! ✍️");
-            return;
-        }
+    function checkWrite(originalWord) {
+        if(!hasEnoughInk()) { alert("글씨를 따라 써주세요! ✍️"); return; }
 
         writeCount--; 
         clearCanvas();
+
         if(writeCount <= 0) {
             speak("Good job!"); 
             setTimeout(() => { 
-                alert("참 잘했어요!"); 
+                alert("쓰기 연습 완료! 이제 퍼즐을 풀어봐요."); 
                 document.getElementById('step-2').style.display='none'; 
                 document.getElementById('step-3').style.display='block'; 
             }, 500);
         } else { 
+            // 횟수가 남았으면 대/소문자 모드 변경
+            if(currentWriteMode === 'upper') {
+                currentWriteMode = 'lower';
+                const text = originalWord.toLowerCase();
+                document.getElementById('target-display').innerText = text;
+                document.getElementById('canvas-guide-text').innerText = text;
+                document.getElementById('guide-msg').innerText = "이제 소문자를 써보세요!";
+            } else {
+                currentWriteMode = 'upper';
+                const text = originalWord.toUpperCase();
+                document.getElementById('target-display').innerText = text;
+                document.getElementById('canvas-guide-text').innerText = text;
+                document.getElementById('guide-msg').innerText = "다시 대문자를 써보세요!";
+            }
             document.getElementById('cnt').innerText = writeCount; 
         }
     }
@@ -428,15 +440,12 @@
     function checkSimilarity(spoken) {
         const cleanTarget = targetSentence.toLowerCase().replace(/[^a-z0-9]/g, "");
         const cleanSpoken = spoken.toLowerCase().replace(/[^a-z0-9]/g, "");
-        
         const similarity = getSimilarity(cleanTarget, cleanSpoken);
         
-        // 70% 이상이면 정답 처리
         if (similarity >= 70) {
             speak("Good job!");
             document.getElementById('speech-result').innerText = "정답입니다! (" + Math.round(similarity) + "%) 🎉";
             document.getElementById('speech-result').style.color = "green";
-            
             setTimeout(() => {
                 if(currentSentIndex === 1) prepareSpeaking(2);
                 else nextWord();
