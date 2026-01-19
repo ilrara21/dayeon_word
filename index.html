@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>다연이의 영어 단어장</title>
     <style>
-        /* 폰트 및 기본 설정 */
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Jua&display=swap');
         
         body { 
@@ -78,6 +77,14 @@
         .canvas-wrapper { position: relative; width: 400px; height: 200px; margin: 0 auto; border: 3px dashed #BDC3C7; border-radius: 20px; background: #fff; overflow: hidden; }
         .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 70px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; }
         canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 10; touch-action: none; background: transparent; }
+
+        /* 자유 쓰기용 단어 리스트 */
+        .review-words { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .review-word-item { 
+            background: #FFF9C4; padding: 10px 20px; border-radius: 15px; border: 2px solid #FBC02D;
+            font-size: 24px; color: #333; cursor: pointer;
+        }
+        .review-word-item:active { transform: scale(0.95); background: #FFEB3B; }
 
         .puzzle-box { display: flex; justify-content: center; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
         .puzzle-char {
@@ -155,16 +162,17 @@
     let allData = [];
     let today = new Date();
     let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    let studyQueue = [], studyIndex = 0, writeCount = 10;
     
-    // 쓰기 관련 변수
-    let currentWriteMode = 'upper'; // 'upper' 또는 'lower'
+    // 학습 상태 관리
+    let studyQueue = [];
+    let studyIndex = 0;
+    let writeCount = 10;
+    let currentStudyDate = ""; // 현재 공부 중인 날짜 (YYYY-MM-DD)
     
-    // 퍼즐 변수
+    let currentWriteMode = 'upper'; 
     let currentPuzzleAnswer = [];
     let currentPuzzleSource = [];
     
-    // 음성 인식 변수
     let recognition;
     let targetSentence = ""; 
     let currentSentIndex = 1;
@@ -256,7 +264,9 @@
 
     function startStudy(dateStr) {
         studyQueue = allData.filter(item => item.date === dateStr);
-        if(studyQueue.length === 0) { alert("단어가 없어요!"); return; }
+        if(studyQueue.length === 0) { alert("이 날짜에는 단어가 없어요!"); return; }
+        
+        currentStudyDate = dateStr; // 현재 날짜 저장
         studyIndex = 0;
         document.getElementById('study-date-title').innerText = dateStr;
         switchView('view-study');
@@ -264,15 +274,9 @@
     }
 
     function loadStep(index) {
+        // [중요] 모든 단어 학습 완료 시 -> 선택 화면 표시
         if(index >= studyQueue.length) {
-            document.getElementById('study-content').innerHTML = `
-                <div style="text-align:center;">
-                    <div style="font-size:100px;">🏆</div>
-                    <h2>오늘 공부 끝!</h2>
-                    <p>참 잘했어요!</p>
-                    <button onclick="showCalendar()">달력으로 돌아가기</button>
-                </div>`;
-            document.getElementById('progress').style.width = "100%";
+            showFinishOptions();
             return;
         }
 
@@ -281,10 +285,7 @@
         document.getElementById('progress').style.width = progress + "%";
         const emojis = ["🍎", "🐶", "🐱", "🚌", "🍕", "⚽", "⭐", "🌈", "📚", "🚗", "✈️"];
         const randEmoji = emojis[Math.floor(Math.random()*emojis.length)];
-
-        // 현재 단어의 대문자/소문자 준비
         const upperWord = data.word.toUpperCase();
-        const lowerWord = data.word.toLowerCase();
 
         document.getElementById('study-content').innerHTML = `
             <div id="step-1" style="animation:fadeIn 0.5s; text-align:center;">
@@ -292,7 +293,7 @@
                 <div class="word-text eng-font" onclick="speak('${data.word}')">${data.word}</div>
                 <div class="word-meaning">${data.meaning}</div>
                 <br><br>
-                <button onclick="goStep2()">쓰기 연습 (10번) 👉</button>
+                <button onclick="goStep2('${data.word}')">쓰기 연습 (10번) 👉</button>
             </div>
 
             <div id="step-2" style="display:none; animation:fadeIn 0.5s; text-align:center;">
@@ -300,16 +301,11 @@
                     <span style="font-size:50px;" onclick="speak('${data.word}')">${randEmoji}</span>
                     <span id="target-display" class="eng-font" style="font-size:50px; color:#333;">${upperWord}</span>
                 </div>
-                
-                <div id="guide-msg" style="font-size:20px; color:#00796B; font-weight:bold; margin-bottom:5px;">
-                    대문자를 따라 써보세요!
-                </div>
-                
+                <div id="guide-msg" style="font-size:20px; color:#00796B; font-weight:bold; margin-bottom:5px;">대문자를 따라 써보세요!</div>
                 <div class="canvas-wrapper">
                     <div id="canvas-guide-text" class="canvas-guide">${upperWord}</div>
                     <canvas id="drawCanvas" width="400" height="200"></canvas>
                 </div>
-
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:0 20px;">
                     <div style="font-size:24px; font-weight:bold; color:#E91E63;">남은 횟수: <span id="cnt">10</span></div>
                     <div>
@@ -342,41 +338,116 @@
         `;
         
         writeCount = 10;
-        currentWriteMode = 'upper'; // 처음엔 대문자부터
+        currentWriteMode = 'upper';
         initPuzzle(data.word);
         setTimeout(() => speak(data.word), 600);
     }
 
-    // --- 쓰기 로직 (대소문자 + 잉크 감지) ---
-    function goStep2() { 
-        document.getElementById('step-1').style.display='none'; 
-        document.getElementById('step-2').style.display='block'; 
-        setupCanvas();
+    // --- [NEW] 학습 완료 후 선택 화면 ---
+    function showFinishOptions() {
+        document.getElementById('progress').style.width = "100%";
+        document.getElementById('study-content').innerHTML = `
+            <div style="text-align:center; animation:fadeIn 0.5s;">
+                <div style="font-size:100px;">🎉</div>
+                <h2 style="font-size:36px; margin-bottom:5px;">오늘 공부 끝!</h2>
+                <p style="font-size:20px; color:#555; margin-bottom:40px;">정말 대단해요. 다음은 무엇을 할까요?</p>
+                
+                <button onclick="startNextDay()" style="margin-bottom:15px; width:90%; background:#2196F3;">
+                    🚀 다음 날 학습하기 (Go!)
+                </button>
+                <br>
+                <button onclick="showFreeWriting()" style="margin-bottom:15px; width:90%; background:#FF9800;">
+                    ✍️ 쓰기 연습 더 하기
+                </button>
+                <br>
+                <button class="sub-btn" onclick="showCalendar()" style="background:#90A4AE; font-size:18px;">
+                    🏠 달력으로 돌아가기
+                </button>
+            </div>
+        `;
     }
 
+    // --- [NEW] 다음 날짜 계산 및 이동 ---
+    function startNextDay() {
+        if(!currentStudyDate) return;
+        
+        let parts = currentStudyDate.split('-');
+        let d = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+        d.setDate(d.getDate() + 1); // +1일
+
+        let y = d.getFullYear();
+        let m = String(d.getMonth() + 1).padStart(2, '0');
+        let day = String(d.getDate()).padStart(2, '0');
+        let nextDateStr = `${y}-${m}-${day}`;
+
+        // 데이터 있는지 확인
+        const hasData = allData.some(item => item.date === nextDateStr);
+        if(hasData) {
+            startStudy(nextDateStr);
+        } else {
+            alert("다음 날짜(" + nextDateStr + ")에는 아직 단어가 없어요! 😢");
+        }
+    }
+
+    // --- [NEW] 자유 쓰기 모드 ---
+    function showFreeWriting() {
+        // 오늘 배운 단어 리스트 HTML 생성
+        let wordsHtml = studyQueue.map(item => 
+            `<div class="review-word-item eng-font" onclick="speak('${item.word}')">${item.word}</div>`
+        ).join('');
+
+        document.getElementById('study-content').innerHTML = `
+            <div style="text-align:center; height:100%; display:flex; flex-direction:column; animation:fadeIn 0.5s;">
+                <h3 style="margin:10px 0; color:#00796B;">자유 쓰기 연습장 📝</h3>
+                
+                <div class="review-words">
+                    ${wordsHtml}
+                </div>
+
+                <div class="canvas-wrapper" style="flex-grow:1; width:100%; border:3px solid #FFC107;">
+                    <canvas id="drawCanvas" style="width:100%; height:100%;"></canvas>
+                </div>
+
+                <div style="margin-top:15px; display:flex; justify-content:center; gap:15px;">
+                    <button class="sub-btn" style="background:#90A4AE;" onclick="clearCanvas()">지우기</button>
+                    <button class="sub-btn" onclick="showCalendar()">끝내기</button>
+                </div>
+            </div>
+        `;
+
+        // 캔버스 재설정 (크기가 바뀌었으므로)
+        setTimeout(() => {
+            canvas = document.getElementById('drawCanvas');
+            ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1; 
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; 
+            ctx.scale(dpr, dpr);
+            ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#333';
+            
+            // 이벤트 리스너 다시 연결
+            canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end);
+            canvas.addEventListener('touchstart', (e)=>{start(e.touches[0]);e.preventDefault();}, {passive:false});
+            canvas.addEventListener('touchmove', (e)=>{move(e.touches[0]);e.preventDefault();}, {passive:false});
+            canvas.addEventListener('touchend', end);
+        }, 100);
+    }
+
+
+    // --- 쓰기 로직 ---
+    function goStep2() { document.getElementById('step-1').style.display='none'; document.getElementById('step-2').style.display='block'; setupCanvas(); }
     function hasEnoughInk() {
         const w = canvas.width; const h = canvas.height;
         const pixels = ctx.getImageData(0, 0, w, h).data;
-        let colored = 0;
-        for(let i = 3; i < pixels.length; i += 4) { if(pixels[i] > 10) colored++; }
+        let colored = 0; for(let i=3; i<pixels.length; i+=4) if(pixels[i]>10) colored++;
         return colored > 300; 
     }
-
     function checkWrite(originalWord) {
         if(!hasEnoughInk()) { alert("글씨를 따라 써주세요! ✍️"); return; }
-
-        writeCount--; 
-        clearCanvas();
-
+        writeCount--; clearCanvas();
         if(writeCount <= 0) {
-            speak("Good job!"); 
-            setTimeout(() => { 
-                alert("쓰기 연습 완료! 이제 퍼즐을 풀어봐요."); 
-                document.getElementById('step-2').style.display='none'; 
-                document.getElementById('step-3').style.display='block'; 
-            }, 500);
+            speak("Good job!"); setTimeout(() => { alert("쓰기 완료! 퍼즐로 이동!"); document.getElementById('step-2').style.display='none'; document.getElementById('step-3').style.display='block'; }, 500);
         } else { 
-            // 횟수가 남았으면 대/소문자 모드 변경
             if(currentWriteMode === 'upper') {
                 currentWriteMode = 'lower';
                 const text = originalWord.toLowerCase();
@@ -394,137 +465,67 @@
         }
     }
 
-    // --- 말하기 로직 ---
+    // --- 말하기/퍼즐/유틸리티 ---
     function prepareSpeaking(stage) {
-        currentSentIndex = stage;
-        document.getElementById('sent-step').innerText = stage;
+        currentSentIndex = stage; document.getElementById('sent-step').innerText = stage;
         const data = studyQueue[studyIndex];
-        const sent1 = document.getElementById('sent1');
-        const sent2 = document.getElementById('sent2');
-        const resDiv = document.getElementById('speech-result');
-        resDiv.innerText = "";
-
-        if(stage === 1) {
-            targetSentence = data.s1;
-            sent1.classList.add('active'); sent1.style.opacity = "1";
-            sent2.classList.remove('active'); sent2.style.opacity = "0.5";
-            speak(data.s1);
-        } else {
-            targetSentence = data.s2;
-            sent1.classList.remove('active'); sent1.classList.add('done');
-            sent2.classList.add('active'); sent2.style.opacity = "1";
-            speak(data.s2);
-        }
+        const s1 = document.getElementById('sent1'); const s2 = document.getElementById('sent2');
+        document.getElementById('speech-result').innerText = "";
+        if(stage===1) { targetSentence=data.s1; s1.classList.add('active'); s1.style.opacity="1"; s2.classList.remove('active'); s2.style.opacity="0.5"; speak(data.s1); }
+        else { targetSentence=data.s2; s1.classList.remove('active'); s1.classList.add('done'); s2.classList.add('active'); s2.style.opacity="1"; speak(data.s2); }
     }
-
     function startListening() {
-        if (!recognition) return;
-        const btn = document.getElementById('micBtn');
-        const resDiv = document.getElementById('speech-result');
-        resDiv.innerText = "듣고 있어요...";
-        btn.classList.add('listening');
-        recognition.start();
-
-        recognition.onresult = function(e) {
-            const transcript = e.results[0][0].transcript;
-            resDiv.innerText = "🗣️ " + transcript;
-            btn.classList.remove('listening');
-            checkSimilarity(transcript);
-        };
-        recognition.onerror = function() {
-            resDiv.innerText = "다시 말해주세요 😅"; btn.classList.remove('listening');
-        };
-        recognition.onend = function() { btn.classList.remove('listening'); };
+        if(!recognition) return;
+        const btn = document.getElementById('micBtn'); const res = document.getElementById('speech-result');
+        res.innerText="듣고 있어요..."; btn.classList.add('listening'); recognition.start();
+        recognition.onresult=function(e){ const t=e.results[0][0].transcript; res.innerText="🗣️ "+t; btn.classList.remove('listening'); checkSimilarity(t); };
+        recognition.onerror=function(){ res.innerText="다시 말해주세요"; btn.classList.remove('listening'); };
+        recognition.onend=function(){ btn.classList.remove('listening'); };
     }
-
-    function checkSimilarity(spoken) {
-        const cleanTarget = targetSentence.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const cleanSpoken = spoken.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const similarity = getSimilarity(cleanTarget, cleanSpoken);
-        
-        if (similarity >= 70) {
-            speak("Good job!");
-            document.getElementById('speech-result').innerText = "정답입니다! (" + Math.round(similarity) + "%) 🎉";
-            document.getElementById('speech-result').style.color = "green";
-            setTimeout(() => {
-                if(currentSentIndex === 1) prepareSpeaking(2);
-                else nextWord();
-            }, 1500);
+    function checkSimilarity(s) {
+        const t = targetSentence.toLowerCase().replace(/[^a-z0-9]/g, ""); const sp = s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const sim = getSimilarity(t, sp);
+        if(sim>=70) {
+            speak("Good job!"); document.getElementById('speech-result').innerText = "정답! ("+Math.round(sim)+"%)"; document.getElementById('speech-result').style.color="green";
+            setTimeout(()=>{ if(currentSentIndex===1) prepareSpeaking(2); else nextWord(); }, 1500);
         } else {
-            speak("Try again");
-            document.getElementById('speech-result').innerText = "비슷해요 (" + Math.round(similarity) + "%) 다시 해보세요.";
-            document.getElementById('speech-result').style.color = "orange";
+            speak("Try again"); document.getElementById('speech-result').innerText = "비슷해요 ("+Math.round(sim)+"%)"; document.getElementById('speech-result').style.color="orange";
         }
     }
-
-    function getSimilarity(s1, s2) {
-        const len1 = s1.length; const len2 = s2.length;
-        const maxLen = Math.max(len1, len2);
-        if (maxLen === 0) return 100;
-        const matrix = [];
-        for (let i = 0; i <= len2; i++) matrix[i] = [i];
-        for (let j = 0; j <= len1; j++) matrix[0][j] = j;
-        for (let i = 1; i <= len2; i++) {
-            for (let j = 1; j <= len1; j++) {
-                if (s2.charAt(i - 1) == s1.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
-                else matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
-            }
-        }
-        return (1 - matrix[len2][len1] / maxLen) * 100;
-    }
-
-    // --- 퍼즐/공통 ---
-    function initPuzzle(word) {
-        currentPuzzleAnswer = [];
-        let chars = word.split('').map((char, index) => ({ char: char, id: index }));
-        currentPuzzleSource = chars.sort(() => Math.random() - 0.5);
-        renderPuzzleUI();
-    }
+    function getSimilarity(s1,s2){ const l1=s1.length,l2=s2.length,m=Math.max(l1,l2); if(m===0)return 100; const mat=[]; for(let i=0;i<=l2;i++)mat[i]=[i]; for(let j=0;j<=l1;j++)mat[0][j]=j; for(let i=1;i<=l2;i++)for(let j=1;j<=l1;j++)mat[i][j]=(s2.charAt(i-1)==s1.charAt(j-1))?mat[i-1][j-1]:Math.min(mat[i-1][j-1]+1,Math.min(mat[i][j-1]+1,mat[i-1][j]+1)); return(1-mat[l2][l1]/m)*100; }
+    
+    function initPuzzle(w) { currentPuzzleAnswer=[]; let c=w.split('').map((x,i)=>({char:x,id:i})); currentPuzzleSource=c.sort(()=>Math.random()-0.5); renderPuzzleUI(); }
     function renderPuzzleUI() {
-        const answerBox = document.getElementById('answer-box');
-        const scrambleBox = document.getElementById('scramble-box');
-        answerBox.innerHTML = currentPuzzleAnswer.map((item, idx) => 
-            `<div class="answer-slot" onclick="removeLetter(${idx})">${item.char}</div>`
-        ).join('');
-        scrambleBox.innerHTML = currentPuzzleSource.map(item => {
-            const isUsed = currentPuzzleAnswer.some(ans => ans.id === item.id);
-            const cls = isUsed ? "letter-btn hidden" : "letter-btn";
-            return `<div class="${cls}" onclick="addLetter('${item.char}', ${item.id})">${item.char.toUpperCase()}</div>`;
+        document.getElementById('answer-box').innerHTML = currentPuzzleAnswer.map((x,i)=>`<div class="answer-slot" onclick="removeLetter(${i})">${x.char}</div>`).join('');
+        document.getElementById('scramble-box').innerHTML = currentPuzzleSource.map(x=>{
+            const used = currentPuzzleAnswer.some(a=>a.id===x.id); return `<div class="letter-btn ${used?'hidden':''}" onclick="addLetter('${x.char}',${x.id})">${x.char.toUpperCase()}</div>`;
         }).join('');
     }
-    function addLetter(char, id) { currentPuzzleAnswer.push({ char: char, id: id }); renderPuzzleUI(); speak(char); }
-    function removeLetter(index) { currentPuzzleAnswer.splice(index, 1); renderPuzzleUI(); }
-    function checkPuzzle(targetWord) {
-        const userWord = currentPuzzleAnswer.map(item => item.char).join('');
-        if(userWord.toLowerCase() === targetWord.toLowerCase()) {
-            speak("Correct!");
-            document.getElementById('step-3').style.display='none'; document.getElementById('step-4').style.display='block';
-            setTimeout(() => prepareSpeaking(1), 500);
-        } else {
-            speak("Try again"); alert("틀렸어요!"); currentPuzzleAnswer = []; renderPuzzleUI();
-        }
+    function addLetter(c,id){ currentPuzzleAnswer.push({char:c,id:id}); renderPuzzleUI(); speak(c); }
+    function removeLetter(i){ currentPuzzleAnswer.splice(i,1); renderPuzzleUI(); }
+    function checkPuzzle(t){ 
+        if(currentPuzzleAnswer.map(x=>x.char).join('').toLowerCase()===t.toLowerCase()){ 
+            speak("Correct!"); document.getElementById('step-3').style.display='none'; document.getElementById('step-4').style.display='block'; setTimeout(()=>prepareSpeaking(1),500); 
+        } else { speak("Try again"); alert("틀렸어요!"); currentPuzzleAnswer=[]; renderPuzzleUI(); } 
     }
 
-    function speak(text) { if (!synth) return; synth.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 0.9; synth.speak(u); }
+    function speak(t) { if(!synth)return; synth.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; u.rate=0.9; synth.speak(u); }
     function nextWord() { studyIndex++; loadStep(studyIndex); }
-    function switchView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById('loading-screen').style.display = 'none'; document.getElementById(id).classList.add('active'); }
+    function switchView(id) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById('loading-screen').style.display='none'; document.getElementById(id).classList.add('active'); }
     function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); }
-
     function setupCanvas() {
-        canvas = document.getElementById('drawCanvas'); ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1; 
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; 
-        ctx.scale(dpr, dpr);
-        ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#333';
-        canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end);
-        canvas.addEventListener('touchstart', (e)=>{start(e.touches[0]);e.preventDefault();}, {passive:false});
-        canvas.addEventListener('touchmove', (e)=>{move(e.touches[0]);e.preventDefault();}, {passive:false});
-        canvas.addEventListener('touchend', end);
+        canvas=document.getElementById('drawCanvas'); ctx=canvas.getContext('2d');
+        const dpr=window.devicePixelRatio||1; const r=canvas.getBoundingClientRect();
+        canvas.width=r.width*dpr; canvas.height=r.height*dpr; ctx.scale(dpr,dpr);
+        ctx.lineWidth=4; ctx.lineCap='round'; ctx.strokeStyle='#333';
+        canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); canvas.addEventListener('mouseup',end);
+        canvas.addEventListener('touchstart',(e)=>{start(e.touches[0]);e.preventDefault();},{passive:false});
+        canvas.addEventListener('touchmove',(e)=>{move(e.touches[0]);e.preventDefault();},{passive:false});
+        canvas.addEventListener('touchend',end);
     }
-    function start(e) { isDrawing=true; ctx.beginPath(); var r=canvas.getBoundingClientRect(); ctx.moveTo(e.clientX-r.left, e.clientY-r.top); }
-    function move(e) { if(!isDrawing)return; var r=canvas.getBoundingClientRect(); ctx.lineTo(e.clientX-r.left, e.clientY-r.top); ctx.stroke(); }
-    function end() { isDrawing=false; }
+    function start(e){ isDrawing=true; ctx.beginPath(); var r=canvas.getBoundingClientRect(); ctx.moveTo(e.clientX-r.left, e.clientY-r.top); }
+    function move(e){ if(!isDrawing)return; var r=canvas.getBoundingClientRect(); ctx.lineTo(e.clientX-r.left, e.clientY-r.top); ctx.stroke(); }
+    function end(){ isDrawing=false; }
 </script>
 
 </body>
