@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>다연이의 영어 단어장</title>
+    <style>
+        /* 폰트 및 기본 설정 */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Jua&display=swap');
+        
+        body { 
+            font-family: 'Jua', sans-serif; 
+            text-align: center; 
+            background-color: #E0F7FA; 
+            margin: 0; 
+            padding: 0; 
+            touch-action: manipulation;
+            height: 100vh;
+            overflow: hidden; 
+        }
+
+        /* 꽉 찬 화면 컨테이너 */
+        .container { 
+            max-width: 800px; 
+            height: 95vh; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 25px; 
+            padding: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; 
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 로딩 화면 */
+        #loading-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(255,255,255,0.9); border-radius: 25px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 999;
+        }
+
+        /* 공통 스타일 */
+        h2 { font-size: 28px; color: #00796B; margin: 10px 0; }
+        .eng-font { font-family: 'Fredoka One', cursive; }
+        
+        /* 버튼 스타일 */
+        button { 
+            background-color: #00BCD4; color: white; border: none; padding: 15px 40px; 
+            font-size: 22px; border-radius: 50px; cursor: pointer; 
+            box-shadow: 0 6px 0 #0097A7; transition: transform 0.1s;
+            font-family: 'Jua', sans-serif; width: 100%; max-width: 300px; margin: 0 auto;
+        }
+        button:active { transform: translateY(4px); box-shadow: 0 2px 0 #0097A7; }
+        button.sub-btn { background-color: #FF7043; box-shadow: 0 6px 0 #E64A19; font-size: 18px; padding: 10px 20px; width: auto;}
+        button.sub-btn:active { box-shadow: 0 2px 0 #E64A19; }
+
+        /* 달력 스타일 */
+        .calendar-grid { 
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; 
+            flex-grow: 1; align-content: center;
+        }
+        .day { 
+            aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; 
+            background: #F1F8E9; border-radius: 12px; font-size: 18px; cursor: pointer; color: #555;
+        }
+        .day.has-data { background: #B2EBF2; color: #006064; font-weight: bold; border: 2px solid #00BCD4; }
+        .day.today { background: #FFEB3B; border: 3px solid #FBC02D; color: #000; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);} 70% {box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);} 100% {box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);} }
+
+        /* 학습 요소 */
+        .word-image { font-size: 100px; margin: 10px 0; cursor: pointer; transition: transform 0.2s; }
+        .word-image:active { transform: scale(1.2); }
+        .word-text { font-size: 70px; color: #333; margin: 10px 0; cursor: pointer; }
+        .word-meaning { font-size: 40px; color: #757575; }
+        
+        /* 캔버스 */
+        canvas { border: 3px dashed #BDC3C7; border-radius: 20px; background: #fff; touch-action: none; margin: 0 auto; display: block; width: 100%; max-width: 500px; height: 250px; }
+
+        /* 퍼즐 */
+        .puzzle-box { display: flex; justify-content: center; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        .puzzle-char {
+            background: #FFECB3; border: 2px solid #FFC107; border-radius: 10px;
+            width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
+            font-size: 30px; font-weight: bold; color: #333;
+        }
+        input[type="text"] { font-size: 30px; padding: 15px; width: 250px; text-align: center; border-radius: 15px; border: 3px solid #00BCD4; outline: none; font-family: 'Fredoka One', cursive;}
+
+        /* 예문 */
+        .sentence-box { 
+            background-color: #E8F5E9; padding: 20px; border-radius: 15px; margin: 15px 0; 
+            font-size: 24px; text-align: left; cursor: pointer; border-left: 5px solid #4CAF50;
+        }
+        
+        .view { display: none; height: 100%; flex-direction: column; justify-content: space-between; }
+        .view.active { display: flex; }
+        .progress-container { width: 100%; background: #eee; height: 15px; border-radius: 10px; overflow: hidden; margin-bottom: 10px;}
+        .progress-bar { height: 100%; background: #00BCD4; width: 0%; transition: width 0.5s; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div id="loading-screen">
+        <div style="font-size: 50px;">🚀</div>
+        <h3>단어장을 가져오고 있어요...</h3>
+    </div>
+
+    <div id="view-calendar" class="view">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 10px;">
+            <button class="sub-btn" onclick="changeMonth(-1)">◀</button>
+            <span id="month-year" style="font-size:30px; font-weight:bold;"></span>
+            <button class="sub-btn" onclick="changeMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid" id="calendar-body"></div>
+        <div style="color:#888; margin-top:10px;">📅 날짜를 눌러서 공부를 시작하세요!</div>
+    </div>
+
+    <div id="view-study" class="view">
+        <div>
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <button class="sub-btn" onclick="showCalendar()" style="padding: 8px 15px; font-size:16px;">🏠 홈으로</button>
+                <h2 id="study-date-title" style="margin:0;"></h2>
+            </div>
+            <div class="progress-container"><div id="progress" class="progress-bar"></div></div>
+        </div>
+        <div id="study-content" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;"></div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // [중요] 여기에 구글 시트 웹 게시 CSV 링크를 넣으세요!
+    // ============================================================
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUloHhQSGx9JvgRWyfVIZt_ibvnK_aeCnuwr6bd6MiKFPgx3CBqMSvfRyqsGNjxcmTza03kNEusRvi/pubhtml"; 
+    
+    let allData = [];
+    let today = new Date();
+    let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    let studyQueue = [], studyIndex = 0, writeCount = 10;
+    let canvas, ctx, isDrawing = false;
+    let synth = window.speechSynthesis;
+
+    window.onload = function() {
+        if(sheetUrl.includes("여기에")) {
+            alert("HTML 파일을 열어서 구글 시트 링크를 넣어주세요!");
+            return;
+        }
+        fetchData();
+    };
+
+    // --- 1. 구글 시트 데이터 가져오기 ---
+    async function fetchData() {
+        try {
+            const res = await fetch(sheetUrl);
+            const text = await res.text();
+            parseCSV(text);
+        } catch (error) {
+            document.getElementById('loading-screen').innerHTML = 
+                `<h3>데이터 가져오기 실패!😭</h3><p>구글 시트 링크를 확인해주세요.</p>`;
+        }
+    }
+
+    function parseCSV(text) {
+        // 첫 줄(헤더) 제외하고 데이터 파싱
+        const rows = text.split('\n').slice(1);
+        
+        allData = rows.map(row => {
+            // 쉼표로 분리 (간단한 파서)
+            const cols = row.split(',');
+            if(cols.length < 2) return null;
+            
+            return {
+                date: cols[0] ? cols[0].trim() : "",
+                word: cols[1] ? cols[1].trim() : "",
+                meaning: cols[2] ? cols[2].trim() : "",
+                s1: cols[3] ? cols[3].trim() : "",
+                s2: cols[4] ? cols[4].trim() : ""
+            };
+        }).filter(item => item !== null && item.word && item.date);
+
+        // 로딩 끝, 달력 보여주기
+        document.getElementById('loading-screen').style.display = 'none';
+        showCalendar();
+        document.getElementById('view-calendar').classList.add('active');
+    }
+
+    // --- 2. 달력 그리기 ---
+    function showCalendar() {
+        switchView('view-calendar');
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        document.getElementById('month-year').innerText = `${year}년 ${month + 1}월`;
+        
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const grid = document.getElementById('calendar-body');
+        
+        grid.innerHTML = `
+            <div class="day-name" style="color:#e74c3c">일</div><div class="day-name">월</div>
+            <div class="day-name">화</div><div class="day-name">수</div>
+            <div class="day-name">목</div><div class="day-name">금</div><div class="day-name" style="color:#3498db">토</div>
+        `;
+
+        for(let i=0; i<firstDay.getDay(); i++) grid.innerHTML += `<div class="empty"></div>`;
+
+        for(let d=1; d<=lastDay.getDate(); d++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            // 날짜 매칭 확인
+            const hasData = allData.some(item => item.date === dateStr);
+            const isToday = (dateStr === new Date().toISOString().slice(0,10));
+            
+            let cls = "day";
+            if(hasData) cls += " has-data";
+            if(isToday) cls += " today";
+
+            const clickAction = hasData ? `onclick="startStudy('${dateStr}')"` : "";
+            grid.innerHTML += `<div class="${cls}" ${clickAction}>${d}</div>`;
+        }
+    }
+
+    function changeMonth(delta) {
+        currentMonth.setMonth(currentMonth.getMonth() + delta);
+        showCalendar();
+    }
+
+    // --- 3. 학습 로직 ---
+    function startStudy(dateStr) {
+        studyQueue = allData.filter(item => item.date === dateStr);
+        if(studyQueue.length === 0) return;
+
+        studyIndex = 0;
+        document.getElementById('study-date-title').innerText = dateStr;
+        switchView('view-study');
+        loadStep(studyIndex);
+    }
+
+    function loadStep(index) {
+        if(index >= studyQueue.length) {
+            document.getElementById('study-content').innerHTML = `
+                <div style="text-align:center;">
+                    <div style="font-size:100px;">🏆</div>
+                    <h2>오늘 공부 끝!</h2>
+                    <p>참 잘했어요!</p>
+                    <button onclick="showCalendar()">달력으로 돌아가기</button>
+                </div>`;
+            document.getElementById('progress').style.width = "100%";
+            return;
+        }
+
+        const data = studyQueue[index];
+        const progress = (index / studyQueue.length) * 100;
+        document.getElementById('progress').style.width = progress + "%";
+        
+        const emojis = ["🍎", "🐶", "🐱", "🚌", "🍕", "⚽", "⭐", "🌈", "📚", "🚗", "✈️"];
+        const randEmoji = emojis[Math.floor(Math.random()*emojis.length)];
+
+        // HTML 렌더링
+        document.getElementById('study-content').innerHTML = `
+            <div id="step-1" style="animation:fadeIn 0.5s; text-align:center;">
+                <div class="word-image" onclick="speak('${data.word}')">${randEmoji} <span style="font-size:30px">🔊</span></div>
+                <div class="word-text eng-font" onclick="speak('${data.word}')">${data.word}</div>
+                <div class="word-meaning">${data.meaning}</div>
+                <br><br>
+                <button onclick="goStep2()">쓰기 연습 (10번) 👉</button>
+            </div>
+
+            <div id="step-2" style="display:none; animation:fadeIn 0.5s; text-align:center;">
+                <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
+                    <span style="font-size:60px;" onclick="speak('${data.word}')">${randEmoji}</span>
+                    <span class="eng-font" style="font-size:60px; color:#333;" onclick="speak('${data.word}')">${data.word}</span>
+                </div>
+                <div style="font-size:20px; color:#888;">따라서 써보세요!</div>
+                <canvas id="drawCanvas" width="400" height="200"></canvas>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:0 20px;">
+                    <div style="font-size:24px; font-weight:bold; color:#E91E63;">남은 횟수: <span id="cnt">10</span></div>
+                    <div>
+                        <button class="sub-btn" style="background:#90A4AE;" onclick="clearCanvas()">지우기</button>
+                        <button class="sub-btn" onclick="checkWrite()">다 썼어요!</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="step-3" style="display:none; animation:fadeIn 0.5s; text-align:center;">
+                <h3>철자를 순서대로 맞춰보세요!</h3>
+                <div class="word-image" style="font-size:60px;" onclick="speak('${data.word}')">${randEmoji}</div>
+                <div class="puzzle-box">
+                    ${shuffleArray(data.word.split('')).map(char => `<div class="puzzle-char eng-font">${char.toUpperCase()}</div>`).join('')}
+                </div>
+                <input type="text" id="quizInput" autocomplete="off" placeholder="정답 입력" class="eng-font">
+                <br><br>
+                <button onclick="checkQuiz('${data.word}')">정답 확인</button>
+            </div>
+
+            <div id="step-4" style="display:none; animation:fadeIn 0.5s;">
+                <h3>문장을 눌러서 들어보세요 🔊</h3>
+                <div class="sentence-box eng-font" onclick="speak('${data.s1}')">${data.s1}</div>
+                <div class="sentence-box eng-font" onclick="speak('${data.s2}')">${data.s2}</div>
+                <br>
+                <button onclick="nextWord()">다음 단어 👉</button>
+            </div>
+        `;
+        writeCount = 10;
+    }
+
+    // --- 유틸리티 함수 ---
+    function speak(text) {
+        if (!synth) return;
+        synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        synth.speak(utterance);
+    }
+
+    function goStep2() {
+        document.getElementById('step-1').style.display='none';
+        document.getElementById('step-2').style.display='block';
+        setupCanvas();
+    }
+
+    function checkWrite() {
+        writeCount--; 
+        clearCanvas();
+        if(writeCount <= 0) {
+            speak("Good job!");
+            setTimeout(() => {
+                alert("잘했어요! 이제 퍼즐을 풀어봐요.");
+                document.getElementById('step-2').style.display='none';
+                document.getElementById('step-3').style.display='block';
+            }, 500);
+        } else {
+            document.getElementById('cnt').innerText = writeCount;
+        }
+    }
+
+    function checkQuiz(ans) {
+        const input = document.getElementById('quizInput').value.trim();
+        if(input.toLowerCase() === ans.toLowerCase()) {
+            speak("Correct!");
+            document.getElementById('step-3').style.display='none';
+            document.getElementById('step-4').style.display='block';
+        } else {
+            speak("Try again");
+            alert("다시 해보세요!");
+            document.getElementById('quizInput').value = '';
+            document.getElementById('quizInput').focus();
+        }
+    }
+
+    function nextWord() { studyIndex++; loadStep(studyIndex); }
+    function switchView(id) { 
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById(id).classList.add('active'); 
+    }
+    function shuffleArray(arr) { return arr.sort(() => Math.random() - 0.5); }
+
+    // 캔버스 설정
+    function setupCanvas() {
+        canvas = document.getElementById('drawCanvas');
+        ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#333';
+        
+        canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', (e)=>{start(e.touches[0]);e.preventDefault();}, {passive:false});
+        canvas.addEventListener('touchmove', (e)=>{move(e.touches[0]);e.preventDefault();}, {passive:false});
+        canvas.addEventListener('touchend', end);
+    }
+    function start(e) { isDrawing=true; ctx.beginPath(); var r=canvas.getBoundingClientRect(); ctx.moveTo(e.clientX-r.left, e.clientY-r.top); }
+    function move(e) { if(!isDrawing)return; var r=canvas.getBoundingClientRect(); ctx.lineTo(e.clientX-r.left, e.clientY-r.top); ctx.stroke(); }
+    function end() { isDrawing=false; }
+    function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); }
+</script>
+
+</body>
+</html>
