@@ -121,6 +121,12 @@
         .view.active { display: flex; }
         .progress-container { width: 100%; background: #eee; height: 15px; border-radius: 10px; overflow: hidden; margin-bottom: 10px;}
         .progress-bar { height: 100%; background: #00BCD4; width: 0%; transition: width 0.5s; }
+        
+        /* [NEW] 단어 순서 표시 배지 */
+        .word-counter {
+            background: #E0F2F1; color: #00695C; padding: 5px 15px; border-radius: 20px;
+            font-size: 16px; font-weight: bold; margin-bottom: 5px; display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -143,10 +149,11 @@
 
     <div id="view-study" class="view">
         <div>
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                 <button class="sub-btn" onclick="showCalendar()" style="padding: 8px 15px; font-size:16px;">🏠 달력</button>
-                <h2 id="study-date-title" style="margin:0;"></h2>
+                <div id="word-count-badge" class="word-counter">단어 1 / 2</div>
             </div>
+            <h2 id="study-date-title" style="margin:0 0 10px 0;"></h2>
             <div class="progress-container"><div id="progress" class="progress-bar"></div></div>
         </div>
         <div id="study-content" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;"></div>
@@ -155,7 +162,7 @@
 
 <script>
     // ============================================================
-    // [설정] 구글 시트 링크
+    // [설정] 구글 시트 링크 (여기에 링크를 넣으세요!)
     // ============================================================
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUloHhQSGx9JvgRWyfVIZt_ibvnK_aeCnuwr6bd6MiKFPgx3CBqMSvfRyqsGNjxcmTza03kNEusRvi/pub?output=csv"; 
     
@@ -167,7 +174,7 @@
     let studyQueue = [];
     let studyIndex = 0;
     let writeCount = 10;
-    let currentStudyDate = ""; // 현재 공부 중인 날짜 (YYYY-MM-DD)
+    let currentStudyDate = "";
     
     let currentWriteMode = 'upper'; 
     let currentPuzzleAnswer = [];
@@ -266,7 +273,7 @@
         studyQueue = allData.filter(item => item.date === dateStr);
         if(studyQueue.length === 0) { alert("이 날짜에는 단어가 없어요!"); return; }
         
-        currentStudyDate = dateStr; // 현재 날짜 저장
+        currentStudyDate = dateStr;
         studyIndex = 0;
         document.getElementById('study-date-title').innerText = dateStr;
         switchView('view-study');
@@ -274,15 +281,19 @@
     }
 
     function loadStep(index) {
-        // [중요] 모든 단어 학습 완료 시 -> 선택 화면 표시
+        // [중요] 모든 단어(예: 2개)를 다 마쳤는지 확인
         if(index >= studyQueue.length) {
             showFinishOptions();
             return;
         }
 
-        const data = studyQueue[index];
-        const progress = (index / studyQueue.length) * 100;
+        // 진행률 및 순서 표시 업데이트
+        const total = studyQueue.length;
+        document.getElementById('word-count-badge').innerText = `단어 ${index + 1} / ${total}`;
+        const progress = (index / total) * 100;
         document.getElementById('progress').style.width = progress + "%";
+
+        const data = studyQueue[index];
         const emojis = ["🍎", "🐶", "🐱", "🚌", "🍕", "⚽", "⭐", "🌈", "📚", "🚗", "✈️"];
         const randEmoji = emojis[Math.floor(Math.random()*emojis.length)];
         const upperWord = data.word.toUpperCase();
@@ -343,89 +354,57 @@
         setTimeout(() => speak(data.word), 600);
     }
 
-    // --- [NEW] 학습 완료 후 선택 화면 ---
+    // --- 완료 화면 ---
     function showFinishOptions() {
         document.getElementById('progress').style.width = "100%";
+        document.getElementById('word-count-badge').innerText = "학습 완료";
+        
         document.getElementById('study-content').innerHTML = `
             <div style="text-align:center; animation:fadeIn 0.5s;">
                 <div style="font-size:100px;">🎉</div>
                 <h2 style="font-size:36px; margin-bottom:5px;">오늘 공부 끝!</h2>
                 <p style="font-size:20px; color:#555; margin-bottom:40px;">정말 대단해요. 다음은 무엇을 할까요?</p>
-                
-                <button onclick="startNextDay()" style="margin-bottom:15px; width:90%; background:#2196F3;">
-                    🚀 다음 날 학습하기 (Go!)
-                </button>
+                <button onclick="startNextDay()" style="margin-bottom:15px; width:90%; background:#2196F3;">🚀 다음 날 학습하기 (Go!)</button>
                 <br>
-                <button onclick="showFreeWriting()" style="margin-bottom:15px; width:90%; background:#FF9800;">
-                    ✍️ 쓰기 연습 더 하기
-                </button>
+                <button onclick="showFreeWriting()" style="margin-bottom:15px; width:90%; background:#FF9800;">✍️ 쓰기 연습 더 하기</button>
                 <br>
-                <button class="sub-btn" onclick="showCalendar()" style="background:#90A4AE; font-size:18px;">
-                    🏠 달력으로 돌아가기
-                </button>
+                <button class="sub-btn" onclick="showCalendar()" style="background:#90A4AE; font-size:18px;">🏠 달력으로 돌아가기</button>
             </div>
         `;
     }
 
-    // --- [NEW] 다음 날짜 계산 및 이동 ---
     function startNextDay() {
         if(!currentStudyDate) return;
-        
         let parts = currentStudyDate.split('-');
         let d = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
         d.setDate(d.getDate() + 1); // +1일
-
-        let y = d.getFullYear();
-        let m = String(d.getMonth() + 1).padStart(2, '0');
-        let day = String(d.getDate()).padStart(2, '0');
+        let y = d.getFullYear(); let m = String(d.getMonth() + 1).padStart(2, '0'); let day = String(d.getDate()).padStart(2, '0');
         let nextDateStr = `${y}-${m}-${day}`;
-
-        // 데이터 있는지 확인
         const hasData = allData.some(item => item.date === nextDateStr);
-        if(hasData) {
-            startStudy(nextDateStr);
-        } else {
-            alert("다음 날짜(" + nextDateStr + ")에는 아직 단어가 없어요! 😢");
-        }
+        if(hasData) startStudy(nextDateStr);
+        else alert("다음 날짜(" + nextDateStr + ")에는 아직 단어가 없어요! 😢");
     }
 
-    // --- [NEW] 자유 쓰기 모드 ---
     function showFreeWriting() {
-        // 오늘 배운 단어 리스트 HTML 생성
-        let wordsHtml = studyQueue.map(item => 
-            `<div class="review-word-item eng-font" onclick="speak('${item.word}')">${item.word}</div>`
-        ).join('');
-
+        let wordsHtml = studyQueue.map(item => `<div class="review-word-item eng-font" onclick="speak('${item.word}')">${item.word}</div>`).join('');
         document.getElementById('study-content').innerHTML = `
             <div style="text-align:center; height:100%; display:flex; flex-direction:column; animation:fadeIn 0.5s;">
                 <h3 style="margin:10px 0; color:#00796B;">자유 쓰기 연습장 📝</h3>
-                
-                <div class="review-words">
-                    ${wordsHtml}
-                </div>
-
+                <div class="review-words">${wordsHtml}</div>
                 <div class="canvas-wrapper" style="flex-grow:1; width:100%; border:3px solid #FFC107;">
                     <canvas id="drawCanvas" style="width:100%; height:100%;"></canvas>
                 </div>
-
                 <div style="margin-top:15px; display:flex; justify-content:center; gap:15px;">
                     <button class="sub-btn" style="background:#90A4AE;" onclick="clearCanvas()">지우기</button>
                     <button class="sub-btn" onclick="showCalendar()">끝내기</button>
                 </div>
             </div>
         `;
-
-        // 캔버스 재설정 (크기가 바뀌었으므로)
         setTimeout(() => {
-            canvas = document.getElementById('drawCanvas');
-            ctx = canvas.getContext('2d');
-            const dpr = window.devicePixelRatio || 1; 
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; 
-            ctx.scale(dpr, dpr);
+            canvas = document.getElementById('drawCanvas'); ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; ctx.scale(dpr, dpr);
             ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#333';
-            
-            // 이벤트 리스너 다시 연결
             canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end);
             canvas.addEventListener('touchstart', (e)=>{start(e.touches[0]);e.preventDefault();}, {passive:false});
             canvas.addEventListener('touchmove', (e)=>{move(e.touches[0]);e.preventDefault();}, {passive:false});
@@ -433,14 +412,11 @@
         }, 100);
     }
 
-
-    // --- 쓰기 로직 ---
+    // --- 쓰기/말하기/퍼즐 (기존과 동일) ---
     function goStep2() { document.getElementById('step-1').style.display='none'; document.getElementById('step-2').style.display='block'; setupCanvas(); }
     function hasEnoughInk() {
-        const w = canvas.width; const h = canvas.height;
-        const pixels = ctx.getImageData(0, 0, w, h).data;
-        let colored = 0; for(let i=3; i<pixels.length; i+=4) if(pixels[i]>10) colored++;
-        return colored > 300; 
+        const w = canvas.width; const h = canvas.height; const pixels = ctx.getImageData(0, 0, w, h).data;
+        let colored = 0; for(let i=3; i<pixels.length; i+=4) if(pixels[i]>10) colored++; return colored > 300; 
     }
     function checkWrite(originalWord) {
         if(!hasEnoughInk()) { alert("글씨를 따라 써주세요! ✍️"); return; }
@@ -449,23 +425,17 @@
             speak("Good job!"); setTimeout(() => { alert("쓰기 완료! 퍼즐로 이동!"); document.getElementById('step-2').style.display='none'; document.getElementById('step-3').style.display='block'; }, 500);
         } else { 
             if(currentWriteMode === 'upper') {
-                currentWriteMode = 'lower';
-                const text = originalWord.toLowerCase();
-                document.getElementById('target-display').innerText = text;
-                document.getElementById('canvas-guide-text').innerText = text;
+                currentWriteMode = 'lower'; const text = originalWord.toLowerCase();
+                document.getElementById('target-display').innerText = text; document.getElementById('canvas-guide-text').innerText = text;
                 document.getElementById('guide-msg').innerText = "이제 소문자를 써보세요!";
             } else {
-                currentWriteMode = 'upper';
-                const text = originalWord.toUpperCase();
-                document.getElementById('target-display').innerText = text;
-                document.getElementById('canvas-guide-text').innerText = text;
+                currentWriteMode = 'upper'; const text = originalWord.toUpperCase();
+                document.getElementById('target-display').innerText = text; document.getElementById('canvas-guide-text').innerText = text;
                 document.getElementById('guide-msg').innerText = "다시 대문자를 써보세요!";
             }
             document.getElementById('cnt').innerText = writeCount; 
         }
     }
-
-    // --- 말하기/퍼즐/유틸리티 ---
     function prepareSpeaking(stage) {
         currentSentIndex = stage; document.getElementById('sent-step').innerText = stage;
         const data = studyQueue[studyIndex];
@@ -493,7 +463,6 @@
         }
     }
     function getSimilarity(s1,s2){ const l1=s1.length,l2=s2.length,m=Math.max(l1,l2); if(m===0)return 100; const mat=[]; for(let i=0;i<=l2;i++)mat[i]=[i]; for(let j=0;j<=l1;j++)mat[0][j]=j; for(let i=1;i<=l2;i++)for(let j=1;j<=l1;j++)mat[i][j]=(s2.charAt(i-1)==s1.charAt(j-1))?mat[i-1][j-1]:Math.min(mat[i-1][j-1]+1,Math.min(mat[i][j-1]+1,mat[i-1][j]+1)); return(1-mat[l2][l1]/m)*100; }
-    
     function initPuzzle(w) { currentPuzzleAnswer=[]; let c=w.split('').map((x,i)=>({char:x,id:i})); currentPuzzleSource=c.sort(()=>Math.random()-0.5); renderPuzzleUI(); }
     function renderPuzzleUI() {
         document.getElementById('answer-box').innerHTML = currentPuzzleAnswer.map((x,i)=>`<div class="answer-slot" onclick="removeLetter(${i})">${x.char}</div>`).join('');
@@ -508,7 +477,6 @@
             speak("Correct!"); document.getElementById('step-3').style.display='none'; document.getElementById('step-4').style.display='block'; setTimeout(()=>prepareSpeaking(1),500); 
         } else { speak("Try again"); alert("틀렸어요!"); currentPuzzleAnswer=[]; renderPuzzleUI(); } 
     }
-
     function speak(t) { if(!synth)return; synth.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; u.rate=0.9; synth.speak(u); }
     function nextWord() { studyIndex++; loadStep(studyIndex); }
     function switchView(id) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById('loading-screen').style.display='none'; document.getElementById(id).classList.add('active'); }
