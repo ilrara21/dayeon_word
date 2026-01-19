@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <link rel="apple-touch-icon" href="icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png"> 
+    
     <title>다연이의 영어 단어장</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Jua&display=swap');
@@ -18,6 +18,8 @@
             margin: 0; padding: 0; 
             touch-action: manipulation;
             height: 100vh; overflow: hidden; 
+            -webkit-user-select: none; /* 텍스트 선택 방지 (앱처럼 느낌) */
+            user-select: none;
         }
 
         .container { 
@@ -36,7 +38,8 @@
         }
 
         h2 { font-size: 28px; color: #00796B; margin: 10px 0; }
-        .eng-font { font-family: 'Fredoka One', cursive; }
+        .eng-font { font-family: 'Fredoka One', cursive; cursor: pointer; }
+        .eng-font:active { color: #E91E63; transform: scale(1.1); transition: 0.1s; } /* 누를 때 효과 */
         
         button { 
             background-color: #00BCD4; color: white; border: none; padding: 15px 40px; 
@@ -73,13 +76,14 @@
         .day.has-data:active { transform: translateY(2px); box-shadow: none; }
         .day.today { background: #FFEB3B; border: 3px solid #FBC02D; color: #000; animation: pulse 2s infinite;}
         
-        .word-image { font-size: 100px; margin: 10px 0; cursor: pointer; }
-        .word-text { font-size: 70px; color: #333; margin: 10px 0; cursor: pointer; }
+        .word-image { font-size: 100px; margin: 10px 0; cursor: pointer; transition: transform 0.2s; }
+        .word-image:active { transform: scale(1.2); }
+        .word-text { font-size: 70px; color: #333; margin: 10px 0; }
         .word-meaning { font-size: 40px; color: #757575; }
         
         /* 캔버스 스타일 */
         .canvas-wrapper { position: relative; width: 400px; height: 200px; margin: 0 auto; border: 3px dashed #BDC3C7; border-radius: 20px; background: #fff; overflow: hidden; }
-        .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 70px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; }
+        .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 70px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; pointer-events: none; }
         canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 10; touch-action: none; background: transparent; }
 
         /* 자유 쓰기용 단어 리스트 */
@@ -126,7 +130,6 @@
         .progress-container { width: 100%; background: #eee; height: 15px; border-radius: 10px; overflow: hidden; margin-bottom: 10px;}
         .progress-bar { height: 100%; background: #00BCD4; width: 0%; transition: width 0.5s; }
         
-        /* [NEW] 단어 순서 표시 배지 */
         .word-counter {
             background: #E0F2F1; color: #00695C; padding: 5px 15px; border-radius: 20px;
             font-size: 16px; font-weight: bold; margin-bottom: 5px; display: inline-block;
@@ -285,13 +288,11 @@
     }
 
     function loadStep(index) {
-        // [중요] 모든 단어(예: 2개)를 다 마쳤는지 확인
         if(index >= studyQueue.length) {
             showFinishOptions();
             return;
         }
 
-        // 진행률 및 순서 표시 업데이트
         const total = studyQueue.length;
         document.getElementById('word-count-badge').innerText = `단어 ${index + 1} / ${total}`;
         const progress = (index / total) * 100;
@@ -314,7 +315,7 @@
             <div id="step-2" style="display:none; animation:fadeIn 0.5s; text-align:center;">
                 <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
                     <span style="font-size:50px;" onclick="speak('${data.word}')">${randEmoji}</span>
-                    <span id="target-display" class="eng-font" style="font-size:50px; color:#333;">${upperWord}</span>
+                    <span id="target-display" class="eng-font" style="font-size:50px; color:#333;" onclick="speak(this.innerText)">${upperWord}</span>
                 </div>
                 <div id="guide-msg" style="font-size:20px; color:#00796B; font-weight:bold; margin-bottom:5px;">대문자를 따라 써보세요!</div>
                 <div class="canvas-wrapper">
@@ -343,8 +344,8 @@
 
             <div id="step-4" style="display:none; animation:fadeIn 0.5s; text-align:center;">
                 <h3>따라 말해보세요! ( <span id="sent-step">1</span> / 2 )</h3>
-                <div class="sentence-box eng-font" id="sent1">🔊 ${data.s1}</div>
-                <div class="sentence-box eng-font" id="sent2" style="opacity:0.5;">🔊 ${data.s2}</div>
+                <div class="sentence-box eng-font" id="sent1" onclick="speak('${data.s1}')">🔊 ${data.s1}</div>
+                <div class="sentence-box eng-font" id="sent2" style="opacity:0.5;" onclick="speak('${data.s2}')">🔊 ${data.s2}</div>
                 <button id="micBtn" class="mic-btn" onclick="startListening()">🎤</button>
                 <div id="speech-result" style="height:30px; font-size:20px; font-weight:bold; color:#0097A7; margin-top:10px;"></div>
                 <br>
@@ -416,7 +417,7 @@
         }, 100);
     }
 
-    // --- 쓰기/말하기/퍼즐 (기존과 동일) ---
+    // --- 쓰기/말하기/퍼즐 ---
     function goStep2() { document.getElementById('step-1').style.display='none'; document.getElementById('step-2').style.display='block'; setupCanvas(); }
     function hasEnoughInk() {
         const w = canvas.width; const h = canvas.height; const pixels = ctx.getImageData(0, 0, w, h).data;
@@ -437,6 +438,7 @@
                 document.getElementById('target-display').innerText = text; document.getElementById('canvas-guide-text').innerText = text;
                 document.getElementById('guide-msg').innerText = "다시 대문자를 써보세요!";
             }
+            speak(document.getElementById('target-display').innerText); // 모드 바뀔때 읽어주기
             document.getElementById('cnt').innerText = writeCount; 
         }
     }
@@ -469,7 +471,7 @@
     function getSimilarity(s1,s2){ const l1=s1.length,l2=s2.length,m=Math.max(l1,l2); if(m===0)return 100; const mat=[]; for(let i=0;i<=l2;i++)mat[i]=[i]; for(let j=0;j<=l1;j++)mat[0][j]=j; for(let i=1;i<=l2;i++)for(let j=1;j<=l1;j++)mat[i][j]=(s2.charAt(i-1)==s1.charAt(j-1))?mat[i-1][j-1]:Math.min(mat[i-1][j-1]+1,Math.min(mat[i][j-1]+1,mat[i-1][j]+1)); return(1-mat[l2][l1]/m)*100; }
     function initPuzzle(w) { currentPuzzleAnswer=[]; let c=w.split('').map((x,i)=>({char:x,id:i})); currentPuzzleSource=c.sort(()=>Math.random()-0.5); renderPuzzleUI(); }
     function renderPuzzleUI() {
-        document.getElementById('answer-box').innerHTML = currentPuzzleAnswer.map((x,i)=>`<div class="answer-slot" onclick="removeLetter(${i})">${x.char}</div>`).join('');
+        document.getElementById('answer-box').innerHTML = currentPuzzleAnswer.map((x,i)=>`<div class="answer-slot" onclick="speak('${x.char}'); removeLetter(${i})">${x.char}</div>`).join('');
         document.getElementById('scramble-box').innerHTML = currentPuzzleSource.map(x=>{
             const used = currentPuzzleAnswer.some(a=>a.id===x.id); return `<div class="letter-btn ${used?'hidden':''}" onclick="addLetter('${x.char}',${x.id})">${x.char.toUpperCase()}</div>`;
         }).join('');
@@ -481,6 +483,8 @@
             speak("Correct!"); document.getElementById('step-3').style.display='none'; document.getElementById('step-4').style.display='block'; setTimeout(()=>prepareSpeaking(1),500); 
         } else { speak("Try again"); alert("틀렸어요!"); currentPuzzleAnswer=[]; renderPuzzleUI(); } 
     }
+
+    // --- 음성 합성 및 유틸 ---
     function speak(t) { if(!synth)return; synth.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; u.rate=0.9; synth.speak(u); }
     function nextWord() { studyIndex++; loadStep(studyIndex); }
     function switchView(id) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById('loading-screen').style.display='none'; document.getElementById(id).classList.add('active'); }
@@ -501,5 +505,4 @@
 </script>
 
 </body>
-
 </html>
