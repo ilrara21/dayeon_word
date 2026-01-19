@@ -18,8 +18,7 @@
             margin: 0; padding: 0; 
             touch-action: manipulation;
             height: 100vh; overflow: hidden; 
-            -webkit-user-select: none; /* 텍스트 선택 방지 (앱처럼 느낌) */
-            user-select: none;
+            -webkit-user-select: none; user-select: none;
         }
 
         .container { 
@@ -39,7 +38,7 @@
 
         h2 { font-size: 28px; color: #00796B; margin: 10px 0; }
         .eng-font { font-family: 'Fredoka One', cursive; cursor: pointer; }
-        .eng-font:active { color: #E91E63; transform: scale(1.1); transition: 0.1s; } /* 누를 때 효과 */
+        .eng-font:active { color: #E91E63; transform: scale(1.1); transition: 0.1s; }
         
         button { 
             background-color: #00BCD4; color: white; border: none; padding: 15px 40px; 
@@ -81,12 +80,10 @@
         .word-text { font-size: 70px; color: #333; margin: 10px 0; }
         .word-meaning { font-size: 40px; color: #757575; }
         
-        /* 캔버스 스타일 */
         .canvas-wrapper { position: relative; width: 400px; height: 200px; margin: 0 auto; border: 3px dashed #BDC3C7; border-radius: 20px; background: #fff; overflow: hidden; }
         .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 70px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; pointer-events: none; }
         canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 10; touch-action: none; background: transparent; }
 
-        /* 자유 쓰기용 단어 리스트 */
         .review-words { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
         .review-word-item { 
             background: #FFF9C4; padding: 10px 20px; border-radius: 15px; border: 2px solid #FBC02D;
@@ -134,6 +131,19 @@
             background: #E0F2F1; color: #00695C; padding: 5px 15px; border-radius: 20px;
             font-size: 16px; font-weight: bold; margin-bottom: 5px; display: inline-block;
         }
+
+        /* [NEW] 필기 전시회 스타일 */
+        .gallery-container {
+            display: flex; overflow-x: auto; gap: 15px; padding: 10px; border: 2px dashed #B2DFDB; border-radius: 15px; background: #F0F4C3;
+            margin-bottom: 20px;
+        }
+        .gallery-item {
+            flex: 0 0 auto; width: 150px; text-align: center;
+        }
+        .gallery-img {
+            width: 140px; height: 70px; background: white; border: 1px solid #ccc; border-radius: 10px; object-fit: contain;
+        }
+        .gallery-label { font-size: 14px; color: #555; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -177,7 +187,6 @@
     let today = new Date();
     let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    // 학습 상태 관리
     let studyQueue = [];
     let studyIndex = 0;
     let writeCount = 10;
@@ -186,6 +195,9 @@
     let currentWriteMode = 'upper'; 
     let currentPuzzleAnswer = [];
     let currentPuzzleSource = [];
+    
+    // [NEW] 필기 저장용 배열
+    let dailyDrawings = [];
     
     let recognition;
     let targetSentence = ""; 
@@ -282,6 +294,7 @@
         
         currentStudyDate = dateStr;
         studyIndex = 0;
+        dailyDrawings = []; // 학습 시작 시 필기 기록 초기화
         document.getElementById('study-date-title').innerText = dateStr;
         switchView('view-study');
         loadStep(studyIndex);
@@ -359,19 +372,40 @@
         setTimeout(() => speak(data.word), 600);
     }
 
-    // --- 완료 화면 ---
+    // --- [NEW] 완료 화면 & 필기 전시회 ---
     function showFinishOptions() {
         document.getElementById('progress').style.width = "100%";
         document.getElementById('word-count-badge').innerText = "학습 완료";
         
+        // 필기 기록 HTML 생성
+        let galleryHtml = "";
+        if(dailyDrawings.length > 0) {
+            galleryHtml = dailyDrawings.map(d => `
+                <div class="gallery-item">
+                    <img src="${d.image}" class="gallery-img">
+                    <div class="gallery-label eng-font">${d.word}</div>
+                </div>
+            `).join('');
+        } else {
+            galleryHtml = "<p>아직 저장된 필기가 없어요!</p>";
+        }
+        
         document.getElementById('study-content').innerHTML = `
-            <div style="text-align:center; animation:fadeIn 0.5s;">
-                <div style="font-size:100px;">🎉</div>
-                <h2 style="font-size:36px; margin-bottom:5px;">오늘 공부 끝!</h2>
-                <p style="font-size:20px; color:#555; margin-bottom:40px;">정말 대단해요. 다음은 무엇을 할까요?</p>
-                <button onclick="startNextDay()" style="margin-bottom:15px; width:90%; background:#2196F3;">🚀 다음 날 학습하기 (Go!)</button>
+            <div style="text-align:center; animation:fadeIn 0.5s; padding-bottom:20px;">
+                <div style="font-size:80px;">🎉</div>
+                <h2 style="font-size:32px; margin-bottom:5px;">오늘 공부 끝!</h2>
+                
+                <div style="margin:20px 0; text-align:left;">
+                    <h3 style="margin-left:10px; color:#00796B;">🎨 오늘 쓴 글씨들</h3>
+                    <div class="gallery-container">
+                        ${galleryHtml}
+                    </div>
+                </div>
+                
+                <p style="font-size:18px; color:#555;">다음은 무엇을 할까요?</p>
+                <button onclick="startNextDay()" style="margin-bottom:10px; width:90%; background:#2196F3;">🚀 다음 날 학습하기 (Go!)</button>
                 <br>
-                <button onclick="showFreeWriting()" style="margin-bottom:15px; width:90%; background:#FF9800;">✍️ 쓰기 연습 더 하기</button>
+                <button onclick="showFreeWriting()" style="margin-bottom:10px; width:90%; background:#FF9800;">✍️ 쓰기 연습 더 하기</button>
                 <br>
                 <button class="sub-btn" onclick="showCalendar()" style="background:#90A4AE; font-size:18px;">🏠 달력으로 돌아가기</button>
             </div>
@@ -419,12 +453,23 @@
 
     // --- 쓰기/말하기/퍼즐 ---
     function goStep2() { document.getElementById('step-1').style.display='none'; document.getElementById('step-2').style.display='block'; setupCanvas(); }
+    
     function hasEnoughInk() {
         const w = canvas.width; const h = canvas.height; const pixels = ctx.getImageData(0, 0, w, h).data;
         let colored = 0; for(let i=3; i<pixels.length; i+=4) if(pixels[i]>10) colored++; return colored > 300; 
     }
+    
     function checkWrite(originalWord) {
         if(!hasEnoughInk()) { alert("글씨를 따라 써주세요! ✍️"); return; }
+        
+        // [NEW] 마지막 1번 남았을 때(=성공해서 완료되기 직전) 캔버스 이미지 저장
+        if(writeCount === 1) {
+            dailyDrawings.push({
+                word: document.getElementById('target-display').innerText, // 현재 쓰고 있는 글자 (대/소문자)
+                image: canvas.toDataURL()
+            });
+        }
+
         writeCount--; clearCanvas();
         if(writeCount <= 0) {
             speak("Good job!"); setTimeout(() => { alert("쓰기 완료! 퍼즐로 이동!"); document.getElementById('step-2').style.display='none'; document.getElementById('step-3').style.display='block'; }, 500);
@@ -438,7 +483,7 @@
                 document.getElementById('target-display').innerText = text; document.getElementById('canvas-guide-text').innerText = text;
                 document.getElementById('guide-msg').innerText = "다시 대문자를 써보세요!";
             }
-            speak(document.getElementById('target-display').innerText); // 모드 바뀔때 읽어주기
+            speak(document.getElementById('target-display').innerText);
             document.getElementById('cnt').innerText = writeCount; 
         }
     }
@@ -484,8 +529,15 @@
         } else { speak("Try again"); alert("틀렸어요!"); currentPuzzleAnswer=[]; renderPuzzleUI(); } 
     }
 
-    // --- 음성 합성 및 유틸 ---
-    function speak(t) { if(!synth)return; synth.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; u.rate=0.9; synth.speak(u); }
+    // --- [EDIT] 속도 0.8로 조절 ---
+    function speak(t) { 
+        if(!synth)return; 
+        synth.cancel(); 
+        const u=new SpeechSynthesisUtterance(t); 
+        u.lang='en-US'; 
+        u.rate=0.8; // 속도 느리게
+        synth.speak(u); 
+    }
     function nextWord() { studyIndex++; loadStep(studyIndex); }
     function switchView(id) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById('loading-screen').style.display='none'; document.getElementById(id).classList.add('active'); }
     function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); }
