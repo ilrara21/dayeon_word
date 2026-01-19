@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>다연이의 영어 단어장</title>
+    <style>
+        /* 폰트 및 기본 설정 */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Jua&display=swap');
+        
+        body { 
+            font-family: 'Jua', sans-serif; 
+            text-align: center; 
+            background-color: #E0F7FA; 
+            margin: 0; padding: 0; 
+            touch-action: manipulation;
+            height: 100vh; overflow: hidden; 
+        }
+
+        .container { 
+            max-width: 800px; height: 95vh; margin: 0 auto; 
+            background: white; border-radius: 25px; padding: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+            display: flex; flex-direction: column; justify-content: space-between; 
+            box-sizing: border-box; position: relative;
+        }
+
+        #loading-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(255,255,255,0.95); border-radius: 25px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 999;
+        }
+
+        h2 { font-size: 28px; color: #00796B; margin: 10px 0; }
+        .eng-font { font-family: 'Fredoka One', cursive; }
+        
+        button { 
+            background-color: #00BCD4; color: white; border: none; padding: 15px 40px; 
+            font-size: 22px; border-radius: 50px; cursor: pointer; 
+            box-shadow: 0 6px 0 #0097A7; transition: transform 0.1s;
+            font-family: 'Jua', sans-serif; width: 100%; max-width: 300px; margin: 0 auto;
+        }
+        button:active { transform: translateY(4px); box-shadow: 0 2px 0 #0097A7; }
+        button.sub-btn { background-color: #FF7043; box-shadow: 0 6px 0 #E64A19; font-size: 18px; padding: 10px 20px; width: auto;}
+        button.sub-btn:active { box-shadow: 0 2px 0 #E64A19; }
+
+        .mic-btn {
+            width: 80px; height: 80px; border-radius: 50%; padding: 0;
+            background: #f44336; box-shadow: 0 6px 0 #d32f2f;
+            font-size: 40px; display: flex; align-items: center; justify-content: center;
+            margin: 20px auto;
+        }
+        .mic-btn.listening { animation: pulse-red 1.5s infinite; background: #ff1744; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 23, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }
+        }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; flex-grow: 1; align-content: center; }
+        .day { 
+            aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; 
+            background: #F1F8E9; border-radius: 12px; font-size: 18px; cursor: pointer; color: #999; transition: 0.2s;
+        }
+        .day.has-data { 
+            background: #B2EBF2; color: #006064; font-weight: bold; border: 2px solid #00BCD4; 
+            box-shadow: 0 4px 0 #0097A7; transform: translateY(-2px);
+        }
+        .day.has-data:active { transform: translateY(2px); box-shadow: none; }
+        .day.today { background: #FFEB3B; border: 3px solid #FBC02D; color: #000; animation: pulse 2s infinite;}
+        
+        .word-image { font-size: 100px; margin: 10px 0; cursor: pointer; }
+        .word-text { font-size: 70px; color: #333; margin: 10px 0; cursor: pointer; }
+        .word-meaning { font-size: 40px; color: #757575; }
+        
+        /* 캔버스 컨테이너 (겹치기 위함) */
+        .canvas-wrapper { position: relative; width: 400px; height: 200px; margin: 0 auto; border: 3px dashed #BDC3C7; border-radius: 20px; background: #fff; overflow: hidden; }
+        /* 배경 가이드 텍스트 */
+        .canvas-guide { position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 80px; color: #E0E0E0; font-family: 'Fredoka One', cursive; z-index: 1; user-select: none; }
+        /* 실제 그리는 캔버스 */
+        canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 10; touch-action: none; background: transparent; }
+
+        .puzzle-box { display: flex; justify-content: center; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        .puzzle-char {
+            background: #FFECB3; border: 2px solid #FFC107; border-radius: 10px;
+            width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
+            font-size: 30px; font-weight: bold; color: #333;
+        }
+        .puzzle-area { margin: 20px 0; }
+        .answer-container { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; min-height: 60px; }
+        .answer-slot {
+            width: 50px; height: 60px; border-bottom: 4px solid #333;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px; font-weight: bold; color: #00796B;
+            font-family: 'Fredoka One', cursive; cursor: pointer;
+        }
+        .scramble-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .letter-btn {
+            width: 60px; height: 60px; background: #FFECB3;
+            border: 3px solid #FFC107; border-radius: 12px;
+            font-size: 32px; font-weight: bold; color: #5D4037;
+            font-family: 'Fredoka One', cursive; cursor: pointer;
+            box-shadow: 0 4px 0 #FFA000; user-select: none; display: flex; align-items: center; justify-content: center;
+        }
+        .letter-btn.hidden { opacity: 0; pointer-events: none; }
+
+        .sentence-box { 
+            background-color: #E8F5E9; padding: 20px; border-radius: 15px; margin: 15px 0; 
+            font-size: 24px; text-align: left; cursor: pointer; border-left: 5px solid #4CAF50; transition: 0.3s;
+        }
+        .sentence-box.active { background-color: #BBDEFB; border: 3px solid #2196F3; transform: scale(1.02); }
+        .sentence-box.done { background-color: #C8E6C9; border: 3px solid #4CAF50; opacity: 0.7; pointer-events: none;}
+        
+        .view { display: none; height: 100%; flex-direction: column; justify-content: space-between; }
+        .view.active { display: flex; }
+        .progress-container { width: 100%; background: #eee; height: 15px; border-radius: 10px; overflow: hidden; margin-bottom: 10px;}
+        .progress-bar { height: 100%; background: #00BCD4; width: 0%; transition: width 0.5s; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loading-screen">
+        <div style="font-size: 50px;">📡</div>
+        <h3>단어장을 연결하고 있어요...</h3>
+    </div>
+
+    <div id="view-calendar" class="view">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 10px;">
+            <button class="sub-btn" onclick="changeMonth(-1)">◀</button>
+            <span id="month-year" style="font-size:30px; font-weight:bold;"></span>
+            <button class="sub-btn" onclick="changeMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid" id="calendar-body"></div>
+        <div style="color:#555; margin-top:10px; font-weight:bold;">👇 파란색 날짜를 누르면 시작해요!</div>
+    </div>
+
+    <div id="view-study" class="view">
+        <div>
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <button class="sub-btn" onclick="showCalendar()" style="padding: 8px 15px; font-size:16px;">🏠 달력</button>
+                <h2 id="study-date-title" style="margin:0;"></h2>
+            </div>
+            <div class="progress-container"><div id="progress" class="progress-bar"></div></div>
+        </div>
+        <div id="study-content" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;"></div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // [설정] 구글 시트 링크 (여기에 링크를 넣으세요!)
+    // ============================================================
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUloHhQSGx9JvgRWyfVIZt_ibvnK_aeCnuwr6bd6MiKFPgx3CBqMSvfRyqsGNjxcmTza03kNEusRvi/pub?output=csv"; 
+    
+    let allData = [];
+    let today = new Date();
+    let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    let studyQueue = [], studyIndex = 0, writeCount = 10;
+    
+    let currentPuzzleAnswer = [];
+    let currentPuzzleSource = [];
+    
+    let recognition;
+    let targetSentence = ""; 
+    let currentSentIndex = 1;
+
+    let canvas, ctx, isDrawing = false;
+    let synth = window.speechSynthesis;
+
+    window.onload = function() {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+        } else {
+            alert("이 브라우저는 음성 인식을 지원하지 않아요.");
+        }
+
+        if(sheetUrl.includes("여기에")) {
+            alert("HTML 파일을 열어 구글 시트 링크를 꼭 넣어주세요!");
+            return;
+        }
+        fetchData();
+    };
+
+    function normalizeDate(str) {
+        if(!str) return "";
+        let s = str.replace(/\./g, '-').replace(/\//g, '-').trim();
+        let parts = s.split('-');
+        if(parts.length === 3) {
+            let y = parts[0];
+            let m = parts[1].padStart(2, '0');
+            let d = parts[2].padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        return s;
+    }
+
+    async function fetchData() {
+        try {
+            const res = await fetch(sheetUrl);
+            const text = await res.text();
+            parseCSV(text);
+        } catch (error) {
+            document.getElementById('loading-screen').innerHTML = `<h3>연결 실패!😭</h3>`;
+        }
+    }
+
+    function parseCSV(text) {
+        const rows = text.replace(/\r/g, '').split('\n').slice(1);
+        allData = rows.map(row => {
+            const cols = row.split(',');
+            if(cols.length < 2) return null;
+            return {
+                date: normalizeDate(cols[0]), 
+                word: cols[1] ? cols[1].trim() : "",
+                meaning: cols[2] ? cols[2].trim() : "",
+                s1: cols[3] ? cols[3].trim() : "",
+                s2: cols[4] ? cols[4].trim() : ""
+            };
+        }).filter(item => item !== null && item.word && item.date);
+
+        document.getElementById('loading-screen').style.display = 'none';
+        showCalendar();
+        document.getElementById('view-calendar').classList.add('active');
+    }
+
+    function showCalendar() {
+        switchView('view-calendar');
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        document.getElementById('month-year').innerText = `${year}년 ${month + 1}월`;
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const grid = document.getElementById('calendar-body');
+        grid.innerHTML = `<div class="day-name" style="color:#e74c3c">일</div><div class="day-name">월</div><div class="day-name">화</div><div class="day-name">수</div><div class="day-name">목</div><div class="day-name">금</div><div class="day-name" style="color:#3498db">토</div>`;
+        for(let i=0; i<firstDay.getDay(); i++) grid.innerHTML += `<div class="empty"></div>`;
+        for(let d=1; d<=lastDay.getDate(); d++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const hasData = allData.some(item => item.date === dateStr);
+            const isToday = (dateStr === new Date().toISOString().slice(0,10));
+            let cls = "day"; let clickAttr = "";
+            if(hasData) { cls += " has-data"; clickAttr = `onclick="startStudy('${dateStr}')"`; }
+            if(isToday) cls += " today";
+            grid.innerHTML += `<div class="${cls}" ${clickAttr}>${d}</div>`;
+        }
+    }
+    function changeMonth(delta) { currentMonth.setMonth(currentMonth.getMonth() + delta); showCalendar(); }
+
+    function startStudy(dateStr) {
+        studyQueue = allData.filter(item => item.date === dateStr);
+        if(studyQueue.length === 0) { alert("단어가 없어요!"); return; }
+        studyIndex = 0;
+        document.getElementById('study-date-title').innerText = dateStr;
+        switchView('view-study');
+        loadStep(studyIndex);
+    }
+
+    function loadStep(index) {
+        if(index >= studyQueue.length) {
+            document.getElementById('study-content').innerHTML = `
+                <div style="text-align:center;">
+                    <div style="font-size:100px;">🏆</div>
+                    <h2>오늘 공부 끝!</h2>
+                    <p>참 잘했어요!</p>
+                    <button onclick="showCalendar()">달력으로 돌아가기</button>
+                </div>`;
+            document.getElementById('progress').style.width = "100%";
+            return;
+        }
+
+        const data = studyQueue[index];
+        const progress = (index / studyQueue.length) * 100;
+        document.getElementById('progress').style.width = progress + "%";
+        const emojis = ["🍎", "🐶", "🐱", "🚌", "🍕", "⚽", "⭐", "🌈", "📚", "🚗", "✈️"];
+        const randEmoji = emojis[Math.floor(Math.random()*emojis.length)];
+
+        document.getElementById('study-content').innerHTML = `
+            <div id="step-1" style="animation:fadeIn 0.5s; text-align:center;">
+                <div class="word-image" onclick="speak('${data.word}')">${randEmoji} <span style="font-size:30px">🔊</span></div>
+                <div class="word-text eng-font" onclick="speak('${data.word}')">${data.word}</div>
+                <div class="word-meaning">${data.meaning}</div>
+                <br><br>
+                <button onclick="goStep2('${data.word}')">쓰기 연습 (10번) 👉</button>
+            </div>
+
+            <div id="step-2" style="display:none; animation:fadeIn 0.5s; text-align:center;">
+                <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
+                    <span style="font-size:60px;" onclick="speak('${data.word}')">${randEmoji}</span>
+                    <span class="eng-font" style="font-size:60px; color:#333;" onclick="speak('${data.word}')">${data.word}</span>
+                </div>
+                <div style="font-size:20px; color:#888;">흐릿한 글씨를 따라 써보세요!</div>
+                
+                <div class="canvas-wrapper">
+                    <div id="canvas-guide-text" class="canvas-guide">${data.word}</div>
+                    <canvas id="drawCanvas" width="400" height="200"></canvas>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:0 20px;">
+                    <div style="font-size:24px; font-weight:bold; color:#E91E63;">남은 횟수: <span id="cnt">10</span></div>
+                    <div>
+                        <button class="sub-btn" style="background:#90A4AE;" onclick="clearCanvas()">지우기</button>
+                        <button class="sub-btn" onclick="checkWrite()">다 썼어요!</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="step-3" style="display:none; animation:fadeIn 0.5s; text-align:center;">
+                <h3>철자를 순서대로 눌러보세요!</h3>
+                <div class="word-image" style="font-size:60px;" onclick="speak('${data.word}')">${randEmoji}</div>
+                <div class="puzzle-area">
+                    <div id="answer-box" class="answer-container"></div>
+                    <div id="scramble-box" class="scramble-container"></div>
+                </div>
+                <br>
+                <button onclick="checkPuzzle('${data.word}')">정답 확인</button>
+            </div>
+
+            <div id="step-4" style="display:none; animation:fadeIn 0.5s; text-align:center;">
+                <h3>따라 말해보세요! ( <span id="sent-step">1</span> / 2 )</h3>
+                <div class="sentence-box eng-font" id="sent1">🔊 ${data.s1}</div>
+                <div class="sentence-box eng-font" id="sent2" style="opacity:0.5;">🔊 ${data.s2}</div>
+                <button id="micBtn" class="mic-btn" onclick="startListening()">🎤</button>
+                <div id="speech-result" style="height:30px; font-size:20px; font-weight:bold; color:#0097A7; margin-top:10px;"></div>
+                <br>
+                <button class="sub-btn" style="background:#90A4AE; font-size:14px; margin-top:20px;" onclick="nextWord()">너무 어려워요 (건너뛰기)</button>
+            </div>
+        `;
+        
+        writeCount = 10;
+        initPuzzle(data.word);
+        setTimeout(() => speak(data.word), 600);
+    }
+
+    // --- 쓰기 로직 (잉크 감지) ---
+    function goStep2(word) { 
+        document.getElementById('step-1').style.display='none'; 
+        document.getElementById('step-2').style.display='block'; 
+        setupCanvas();
+    }
+
+    function hasEnoughInk() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const pixels = ctx.getImageData(0, 0, w, h).data;
+        let coloredPixels = 0;
+        
+        // 픽셀 하나하나 검사 (Alpha 값이 0보다 크면 그린 것)
+        for(let i = 3; i < pixels.length; i += 4) {
+            if(pixels[i] > 10) { 
+                coloredPixels++;
+            }
+        }
+        
+        // 기준: 대략 500픽셀 이상 (점만 찍은게 아닌지 확인)
+        // 화면 해상도(DPR)에 따라 픽셀 수가 다르므로 보정 필요할 수 있으나 단순하게 설정
+        return coloredPixels > 300; 
+    }
+
+    function checkWrite() {
+        // [중요] 잉크 감지 체크
+        if(!hasEnoughInk()) {
+            alert("글씨를 따라 써주세요! ✍️");
+            return;
+        }
+
+        writeCount--; 
+        clearCanvas();
+        if(writeCount <= 0) {
+            speak("Good job!"); 
+            setTimeout(() => { 
+                alert("참 잘했어요!"); 
+                document.getElementById('step-2').style.display='none'; 
+                document.getElementById('step-3').style.display='block'; 
+            }, 500);
+        } else { 
+            document.getElementById('cnt').innerText = writeCount; 
+        }
+    }
+
+    // --- 말하기 로직 ---
+    function prepareSpeaking(stage) {
+        currentSentIndex = stage;
+        document.getElementById('sent-step').innerText = stage;
+        const data = studyQueue[studyIndex];
+        const sent1 = document.getElementById('sent1');
+        const sent2 = document.getElementById('sent2');
+        const resDiv = document.getElementById('speech-result');
+        resDiv.innerText = "";
+
+        if(stage === 1) {
+            targetSentence = data.s1;
+            sent1.classList.add('active'); sent1.style.opacity = "1";
+            sent2.classList.remove('active'); sent2.style.opacity = "0.5";
+            speak(data.s1);
+        } else {
+            targetSentence = data.s2;
+            sent1.classList.remove('active'); sent1.classList.add('done');
+            sent2.classList.add('active'); sent2.style.opacity = "1";
+            speak(data.s2);
+        }
+    }
+
+    function startListening() {
+        if (!recognition) return;
+        const btn = document.getElementById('micBtn');
+        const resDiv = document.getElementById('speech-result');
+        resDiv.innerText = "듣고 있어요...";
+        btn.classList.add('listening');
+        recognition.start();
+
+        recognition.onresult = function(e) {
+            const transcript = e.results[0][0].transcript;
+            resDiv.innerText = "🗣️ " + transcript;
+            btn.classList.remove('listening');
+            checkSimilarity(transcript);
+        };
+        recognition.onerror = function() {
+            resDiv.innerText = "다시 말해주세요 😅"; btn.classList.remove('listening');
+        };
+        recognition.onend = function() { btn.classList.remove('listening'); };
+    }
+
+    function checkSimilarity(spoken) {
+        const cleanTarget = targetSentence.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const cleanSpoken = spoken.toLowerCase().replace(/[^a-z0-9]/g, "");
+        
+        const similarity = getSimilarity(cleanTarget, cleanSpoken);
+        
+        // 70% 이상이면 정답 처리
+        if (similarity >= 70) {
+            speak("Good job!");
+            document.getElementById('speech-result').innerText = "정답입니다! (" + Math.round(similarity) + "%) 🎉";
+            document.getElementById('speech-result').style.color = "green";
+            
+            setTimeout(() => {
+                if(currentSentIndex === 1) prepareSpeaking(2);
+                else nextWord();
+            }, 1500);
+        } else {
+            speak("Try again");
+            document.getElementById('speech-result').innerText = "비슷해요 (" + Math.round(similarity) + "%) 다시 해보세요.";
+            document.getElementById('speech-result').style.color = "orange";
+        }
+    }
+
+    function getSimilarity(s1, s2) {
+        const len1 = s1.length; const len2 = s2.length;
+        const maxLen = Math.max(len1, len2);
+        if (maxLen === 0) return 100;
+        const matrix = [];
+        for (let i = 0; i <= len2; i++) matrix[i] = [i];
+        for (let j = 0; j <= len1; j++) matrix[0][j] = j;
+        for (let i = 1; i <= len2; i++) {
+            for (let j = 1; j <= len1; j++) {
+                if (s2.charAt(i - 1) == s1.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
+                else matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+            }
+        }
+        return (1 - matrix[len2][len1] / maxLen) * 100;
+    }
+
+    // --- 퍼즐/공통 ---
+    function initPuzzle(word) {
+        currentPuzzleAnswer = [];
+        let chars = word.split('').map((char, index) => ({ char: char, id: index }));
+        currentPuzzleSource = chars.sort(() => Math.random() - 0.5);
+        renderPuzzleUI();
+    }
+    function renderPuzzleUI() {
+        const answerBox = document.getElementById('answer-box');
+        const scrambleBox = document.getElementById('scramble-box');
+        answerBox.innerHTML = currentPuzzleAnswer.map((item, idx) => 
+            `<div class="answer-slot" onclick="removeLetter(${idx})">${item.char}</div>`
+        ).join('');
+        scrambleBox.innerHTML = currentPuzzleSource.map(item => {
+            const isUsed = currentPuzzleAnswer.some(ans => ans.id === item.id);
+            const cls = isUsed ? "letter-btn hidden" : "letter-btn";
+            return `<div class="${cls}" onclick="addLetter('${item.char}', ${item.id})">${item.char.toUpperCase()}</div>`;
+        }).join('');
+    }
+    function addLetter(char, id) { currentPuzzleAnswer.push({ char: char, id: id }); renderPuzzleUI(); speak(char); }
+    function removeLetter(index) { currentPuzzleAnswer.splice(index, 1); renderPuzzleUI(); }
+    function checkPuzzle(targetWord) {
+        const userWord = currentPuzzleAnswer.map(item => item.char).join('');
+        if(userWord.toLowerCase() === targetWord.toLowerCase()) {
+            speak("Correct!");
+            document.getElementById('step-3').style.display='none'; document.getElementById('step-4').style.display='block';
+            setTimeout(() => prepareSpeaking(1), 500);
+        } else {
+            speak("Try again"); alert("틀렸어요!"); currentPuzzleAnswer = []; renderPuzzleUI();
+        }
+    }
+
+    function speak(text) { if (!synth) return; synth.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 0.9; synth.speak(u); }
+    function nextWord() { studyIndex++; loadStep(studyIndex); }
+    function switchView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById('loading-screen').style.display = 'none'; document.getElementById(id).classList.add('active'); }
+    function clearCanvas() { ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+    function setupCanvas() {
+        canvas = document.getElementById('drawCanvas'); ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1; 
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; 
+        ctx.scale(dpr, dpr);
+        ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#333';
+        canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', (e)=>{start(e.touches[0]);e.preventDefault();}, {passive:false});
+        canvas.addEventListener('touchmove', (e)=>{move(e.touches[0]);e.preventDefault();}, {passive:false});
+        canvas.addEventListener('touchend', end);
+    }
+    function start(e) { isDrawing=true; ctx.beginPath(); var r=canvas.getBoundingClientRect(); ctx.moveTo(e.clientX-r.left, e.clientY-r.top); }
+    function move(e) { if(!isDrawing)return; var r=canvas.getBoundingClientRect(); ctx.lineTo(e.clientX-r.left, e.clientY-r.top); ctx.stroke(); }
+    function end() { isDrawing=false; }
+</script>
+
+</body>
+</html>
